@@ -1,218 +1,245 @@
-from tkinter import *
-from random import randint
-#import tkMessageBox
+'''
+Created on 2018年5月17日
+@author: within
+'''
+import random
+import pygame
+import sys
+from pygame.locals import *
 
-class Grid(object):
-    def __init__(self, master=None,height=16, width=24, offset=10, grid_width=50, bg="#808080"):
-        self.height = height
-        self.width = width
-        self.offset = offset
-        self.grid_width = grid_width
-        self.bg = bg
-        self.canvas = Canvas(master, width=self.width*self.grid_width+2*self.offset, height=self.height*self.grid_width+
-                                                                                            2*self.offset, bg=self.bg)
-        self.canvas.pack(side=RIGHT, fill=Y)
+Snakespeed = 17
+Window_Width = 800
+Window_Height = 500
+Cell_Size = 20  # Width and height of the cells  
+# Ensuring that the cells fit perfectly in the window. eg if cell size was  
+# 10     and window width or windowheight were 15 only 1.5 cells would  
+# fit.  
+assert Window_Width % Cell_Size == 0, "Window width must be a multiple of cell size."
+# Ensuring that only whole integer number of cells fit perfectly in the window.  
+assert Window_Height % Cell_Size == 0, "Window height must be a multiple of cell size."
+Cell_W = int(Window_Width / Cell_Size)  # Cell Width  
+Cell_H = int(Window_Height / Cell_Size)  # Cellc Height  
 
-    def draw(self, pos, color, ):
-        x = pos[0] * self.grid_width + self.offset
-        y = pos[1] * self.grid_width + self.offset
-        #outline属性要与网格的背景色（self.bg）相同，要不然会很丑
-        self.canvas.create_rectangle(x, y, x + self.grid_width, y + self.grid_width, fill=color, outline=self.bg)
+White = (255, 255, 255)
+Black = (0, 0, 0)
+Red = (255, 0, 0)  # Defining element colors for the program.  
+Green = (0, 255, 0)
+DARKGreen = (0, 155, 0)
+DARKGRAY = (40, 40, 40)
+YELLOW = (255, 255, 0)
+Red_DARK = (150, 0, 0)
+BLUE = (0, 0, 255)
+BLUE_DARK = (0, 0, 150)
 
-class Food(object):
-    def __init__(self, grid, color = "#23D978"):
-        self.grid = grid
-        self.color = color
-        self.set_pos()
-        self.type = 1
+BGCOLOR = Black  # Background color
 
-    def set_pos(self):
-        x = randint(0, self.grid.width - 1)
-        y = randint(0, self.grid.height - 1)
-        self.pos = (x, y)
+UP = 'up'
+DOWN = 'down'  # Defining keyboard keys.
+LEFT = 'left'
+RIGHT = 'right'
 
-    def display(self):
-        self.grid.draw(self.pos, self.color)
+HEAD = 0  # Syntactic sugar: index of the snake's head  
 
 
-class Snake(object):
-    def __init__(self, grid, color = "#000000"):
-        self.grid = grid
-        self.color = color
-        self.body = [(8, 11), (8, 12), (8, 13)]
-        self.direction = "Up"
-        for i in self.body:
-            self.grid.draw(i, self.color)
+def main():
+    global SnakespeedCLOCK, DISPLAYSURF, BASICFONT
 
-    #这个方法用于游戏重新开始时初始化贪吃蛇的位置
-    def initial(self):
-        while not len(self.body) == 0:
-            pop = self.body.pop()
-            self.grid.draw(pop, self.grid.bg)
-        self.body = [(8, 11), (8, 12), (8, 13)]
-        self.direction = "Up"
-        self.color = "#000000"
-        for i in self.body:
-            self.grid.draw(i, self.color)
+    pygame.init()
+    SnakespeedCLOCK = pygame.time.Clock()
+    DISPLAYSURF = pygame.display.set_mode((Window_Width, Window_Height))
+    BASICFONT = pygame.font.Font('freesansbold.ttf', 18)
+    pygame.display.set_caption('Snake')
 
-    #蛇像一个指定点移动
-    def move(self, new):
-        self.body.insert(0, new)
-        pop = self.body.pop()
-        self.grid.draw(pop, self.grid.bg)
-        self.grid.draw(new, self.color)
+    showStartScreen()
+    while True:
+        runGame()
+        showGameOverScreen()
 
-    #蛇像一个指定点移动，并增加长度
-    def add(self ,new):
-        self.body.insert(0, new)
-        self.grid.draw(new, self.color)
+class rasp():
+    def get_cmd():#up,down,left,right
+        cmd_list=['up','down','left','right']
+        return random.choice(cmd_list)
+    def get_rasp_status():
+        if(random.random()<0.2):
+            return 1
+        return 0
+def runGame():
+    # Set a random start point.
+    startx = random.randint(5, Cell_W - 6)
+    starty = random.randint(5, Cell_H - 6)
+    wormCoords = [{'x': startx, 'y': starty},
+                  {'x': startx - 1, 'y': starty},
+                  {'x': startx - 2, 'y': starty}]
+    direction = RIGHT
 
-    #蛇吃到了特殊食物1，剪短自身的长度
-    def cut_down(self,new):
-        self.body.insert(0, new)
-        self.grid.draw(new, self.color)
-        for i in range(0,3):
-            pop = self.body.pop()
-            self.grid.draw(pop, self.grid.bg)
+    # Start the apple in a random place.  
+    apple = getRandomLocation()
 
-    #蛇吃到了特殊食物2，回到最初长度
-    def init(self, new):
-        self.body.insert(0, new)
-        self.grid.draw(new, self.color)
-        while len(self.body) > 3:
-            pop = self.body.pop()
-            self.grid.draw(pop, self.grid.bg)
+    while True:  # main game loop  
+        print('.',end='')
+        for event in pygame.event.get():  # event handling loop
 
-     #蛇吃到了特殊食物3，改变了自身的颜色,纯属好玩
-    def change(self, new, color):
-        self.color = color
-        self.body.insert(0, new)
-        for item in self.body:
-            self.grid.draw(item, self.color)
+            if event.type == QUIT:
+                terminate()
+            elif event.type == KEYDOWN:
+                if (event.key == K_LEFT) and direction != RIGHT:
+                    direction = LEFT
+                elif (event.key == K_RIGHT) and direction != LEFT:
+                    direction = RIGHT
+                elif (event.key == K_UP) and direction != DOWN:
+                    direction = UP
+                elif (event.key == K_DOWN) and direction != UP:
+                    direction = DOWN
+                elif event.key == K_ESCAPE:
+                    terminate()
 
-class SnakeGame(Frame):
-    def __init__(self, master):
-        Frame.__init__(self, master)
-        self.grid = Grid(master)
-        self.snake = Snake(self.grid)
-        self.food = Food(self.grid)
-        self.gameover = False
-        self.score = 0
-        self.status = ['run', 'stop']
-        self.speed = 300
-        self.grid.canvas.bind_all("<KeyRelease>", self.key_release)
-        self.display_food()
-        #用于设置变色食物
-        self.color_c = ("#FFB6C1","#6A5ACD","#0000FF","#F0FFF0","#FFFFE0","#F0F8FF","#EE82EE","#000000","#5FA8D9","#32CD32")
-        self.i = 0
-        #界面左侧显示分数
-        self.m = StringVar()
-        self.ft1 = ('Fixdsys', 40, "bold")
-        self.m1 = Message(master, textvariable=self.m, aspect=5000, font=self.ft1, bg="#696969")
-        self.m1.pack(side=LEFT, fill=Y)
-        self.m.set("Score:"+str(self.score))
+                    # check if the Snake has hit itself or the edge
+        if(rasp.get_rasp_status()):
+            direction=rasp.get_cmd()
+        if wormCoords[HEAD]['x'] == -1 or wormCoords[HEAD]['x'] == Cell_W or wormCoords[HEAD]['y'] == -1 or \
+                wormCoords[HEAD]['y'] == Cell_H:
+            return  # game over  
+        for wormBody in wormCoords[1:]:
+            if wormBody['x'] == wormCoords[HEAD]['x'] and wormBody['y'] == wormCoords[HEAD]['y']:
+                return  # game over  
 
-    #这个方法用于游戏重新开始时初始化游戏
-    def initial(self):
-        self.gameover = False
-        self.score = 0
-        self.m.set("Score:"+str(self.score))
-        self.snake.initial()
-
-    #type1:普通食物  type2:减少2  type3:大乐透，回到最初状态  type4:吃了会变色
-    def display_food(self):
-        self.food.color = "#23D978"
-        self.food.type = 1
-        if randint(0, 40) == 5:
-            self.food.color = "#FFD700"
-            self.food.type = 3
-            while (self.food.pos in self.snake.body):
-                self.food.set_pos()
-            self.food.display()
-        elif randint(0, 4) == 2:
-            self.food.color = "#EE82EE"
-            self.food.type = 4
-            while (self.food.pos in self.snake.body):
-                self.food.set_pos()
-            self.food.display()
-        elif len(self.snake.body) > 10 and randint(0, 16) == 5:
-            self.food.color = "#BC8F8F"
-            self.food.type = 2
-            while (self.food.pos in self.snake.body):
-                self.food.set_pos()
-            self.food.display()
+        # check if Snake has eaten an apply  
+        if wormCoords[HEAD]['x'] == apple['x'] and wormCoords[HEAD]['y'] == apple['y']:
+            # don't remove worm's tail segment  
+            apple = getRandomLocation()  # set a new apple somewhere  
         else:
-            while (self.food.pos in self.snake.body):
-                self.food.set_pos()
-            self.food.display()
+            del wormCoords[-1]  # remove worm's tail segment  
 
-    def key_release(self, event):
-        key = event.keysym
-        key_dict = {"Up": "Down", "Down": "Up", "Left": "Right", "Right": "Left"}
-        #蛇不可以像自己的反方向走
-        if key_dict.has_key(key) and not key == key_dict[self.snake.direction]:
-            self.snake.direction = key
-            self.move()
-        elif key == 'p':
-            self.status.reverse()
+        # move the worm by adding a segment in the direction it is moving  
+        if direction == UP:
+            newHead = {'x': wormCoords[HEAD]['x'],
+                       'y': wormCoords[HEAD]['y'] - 1}
+        elif direction == DOWN:
+            newHead = {'x': wormCoords[HEAD]['x'],
+                       'y': wormCoords[HEAD]['y'] + 1}
+        elif direction == LEFT:
+            newHead = {'x': wormCoords[HEAD][
+                                'x'] - 1, 'y': wormCoords[HEAD]['y']}
+        elif direction == RIGHT:
+            newHead = {'x': wormCoords[HEAD][
+                                'x'] + 1, 'y': wormCoords[HEAD]['y']}
+        wormCoords.insert(0, newHead)
+        DISPLAYSURF.fill(BGCOLOR)
+        drawGrid()
+        drawWorm(wormCoords)
+        drawApple(apple)
+        drawScore(len(wormCoords) - 3)
+        pygame.display.update()
+        SnakespeedCLOCK.tick(Snakespeed)
 
-    def run(self):
-        #首先判断游戏是否暂停
-        if not self.status[0] == 'stop':
-            #判断游戏是否结束
-            if self.gameover == True:
-                #message = tkMessageBox.showinfo("Game Over", "your score: %d" % self.score)
-                if message == 'ok':
-                    self.initial()
-            if self.food.type == 4:
-                color = self.color_c[self.i]
-                self.i = (self.i+1)%10
-                self.food.color = color
-                self.food.display()
-                self.move(color)
-            else:
-                self.move()
-        self.after(self.speed, self.run)
 
-    def move(self, color="#EE82EE"):
-        # 计算蛇下一次移动的点
-        head = self.snake.body[0]
-        if self.snake.direction == 'Up':
-            if head[1] - 1 < 0:
-                new = (head[0], 16)
-            else:
-                new = (head[0], head[1] - 1)
-        elif self.snake.direction == 'Down':
-            new = (head[0], (head[1] + 1) % 16)
-        elif self.snake.direction == 'Left':
-            if head[0] - 1 < 0:
-                new = (24, head[1])
-            else:
-                new = (head[0] - 1, head[1])
-        else:
-            new = ((head[0] + 1) % 24, head[1])
-            #撞到自己，设置游戏结束的标志位，等待下一循环
-        if new in self.snake.body:
-            self.gameover=True
-        #吃到食物
-        elif new == self.food.pos:
-            if self.food.type == 1:
-                self.snake.add(new)
-            elif self.food.type == 2:
-                self.snake.cut_down(new)
-            elif self.food.type == 4:
-                self.snake.change(new, color)
-            else:
-                self.snake.init(new)
-            self.display_food()
-            self.score = self.score+1
-            self.m.set("Score:" + str(self.score))
-        #什么都没撞到，继续前进
-        else:
-            self.snake.move(new)
+def drawPressKeyMsg():
+    pressKeySurf = BASICFONT.render('Press a key to play.', True, White)
+    pressKeyRect = pressKeySurf.get_rect()
+    pressKeyRect.topleft = (Window_Width - 200, Window_Height - 30)
+    DISPLAYSURF.blit(pressKeySurf, pressKeyRect)
+
+
+def checkForKeyPress():
+    if len(pygame.event.get(QUIT)) > 0:
+        terminate()
+    keyUpEvents = pygame.event.get(KEYUP)
+
+    if len(keyUpEvents) == 0:
+        return None
+    if keyUpEvents[0].key == K_ESCAPE:
+        terminate()
+    return keyUpEvents[0].key
+
+
+def showStartScreen():
+    titleFont = pygame.font.Font('freesansbold.ttf', 100)
+    titleSurf1 = titleFont.render('Snake!', True, White, DARKGreen)
+    degrees1 = 0
+    degrees2 = 0
+    while True:
+        DISPLAYSURF.fill(BGCOLOR)
+        rotatedSurf1 = pygame.transform.rotate(titleSurf1, degrees1)
+        rotatedRect1 = rotatedSurf1.get_rect()
+        rotatedRect1.center = (Window_Width / 2, Window_Height / 2)
+        DISPLAYSURF.blit(rotatedSurf1, rotatedRect1)
+
+        drawPressKeyMsg()
+
+        if checkForKeyPress():
+            pygame.event.get()  # clear event queue  
+            return
+        pygame.display.update()
+        SnakespeedCLOCK.tick(Snakespeed)
+        degrees1 += 3  # rotate by 3 degrees each frame  
+        degrees2 += 7  # rotate by 7 degrees each frame  
+
+
+def terminate():
+    pygame.quit()
+    sys.exit()
+
+
+def getRandomLocation():
+    return {'x': random.randint(0, Cell_W - 1), 'y': random.randint(0, Cell_H - 1)}
+
+
+def showGameOverScreen():
+    gameOverFont = pygame.font.Font('freesansbold.ttf', 100)
+    gameSurf = gameOverFont.render('Game', True, White)
+    overSurf = gameOverFont.render('Over', True, White)
+    gameRect = gameSurf.get_rect()
+    overRect = overSurf.get_rect()
+    gameRect.midtop = (Window_Width / 2, 10)
+    overRect.midtop = (Window_Width / 2, gameRect.height + 10 + 25)
+
+    DISPLAYSURF.blit(gameSurf, gameRect)
+    DISPLAYSURF.blit(overSurf, overRect)
+    drawPressKeyMsg()
+    pygame.display.update()
+    pygame.time.wait(500)
+    checkForKeyPress()  # clear out any key presses in the event queue  
+
+    while True:
+        if checkForKeyPress():
+            pygame.event.get()  # clear event queue  
+            return
+
+
+def drawScore(score):
+    scoreSurf = BASICFONT.render('Score: %s' % (score), True, White)
+    scoreRect = scoreSurf.get_rect()
+    scoreRect.topleft = (Window_Width - 120, 10)
+    DISPLAYSURF.blit(scoreSurf, scoreRect)
+
+
+def drawWorm(wormCoords):
+    for coord in wormCoords:
+        x = coord['x'] * Cell_Size
+        y = coord['y'] * Cell_Size
+        wormSegmentRect = pygame.Rect(x, y, Cell_Size, Cell_Size)
+        pygame.draw.rect(DISPLAYSURF, DARKGreen, wormSegmentRect)
+        wormInnerSegmentRect = pygame.Rect(
+            x + 4, y + 4, Cell_Size - 8, Cell_Size - 8)
+        pygame.draw.rect(DISPLAYSURF, Green, wormInnerSegmentRect)
+
+
+def drawApple(coord):
+    x = coord['x'] * Cell_Size
+    y = coord['y'] * Cell_Size
+    appleRect = pygame.Rect(x, y, Cell_Size, Cell_Size)
+    pygame.draw.rect(DISPLAYSURF, Red, appleRect)
+
+
+def drawGrid():
+    for x in range(0, Window_Width, Cell_Size):  # draw vertical lines  
+        pygame.draw.line(DISPLAYSURF, DARKGRAY, (x, 0), (x, Window_Height))
+    for y in range(0, Window_Height, Cell_Size):  # draw horizontal lines  
+        pygame.draw.line(DISPLAYSURF, DARKGRAY, (0, y), (Window_Width, y))
+
 
 if __name__ == '__main__':
-    root = Tk()
-    snakegame = SnakeGame(root)
-    snakegame.run()
-    snakegame.mainloop()
+    try:
+        main()
+    except SystemExit:
+        pass  
